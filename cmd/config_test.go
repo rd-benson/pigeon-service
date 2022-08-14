@@ -228,14 +228,20 @@ func TestRunOncePerPeriodConcurrent(t *testing.T) {
 func TestUnmarshal(t *testing.T) {
 
 	type nested struct {
-		String string   `validate:"required"`
-		Slice  []string `validate:"required"`
+		NestedString string   `validate:"required"`
+		NestedSlice  []string `validate:"required"`
+	}
+
+	type Embedded struct {
+		EmbeddedString string   `validate:"required"`
+		EmbeddedSlice  []string `validate:"required"`
 	}
 
 	type cfg struct {
-		String string   `validate:"required"`
-		Slice  []string `validate:"required"`
-		Nested nested   `validate:"required"`
+		String   string   `validate:"required"`
+		Slice    []string `validate:"required"`
+		Nested   nested   `validate:"required"`
+		Embedded `validate:"required"`
 	}
 
 	viper.SetConfigType("yaml")
@@ -254,17 +260,24 @@ func TestUnmarshal(t *testing.T) {
 String: hello
 Slice: [hello, world]
 Nested:
-  String: hello
-  Slice: [hello, world]	
+  NestedString: hello
+  NestedSlice: [hello, world]
+Embedded:
+  EmbeddedString: hello
+  EmbeddedSlice: [hello, world]	
 `),
 			wantConfig: cfg{
 				String: "hello",
 				Slice:  []string{"hello", "world"},
 				Nested: nested{
-					String: "hello",
-					Slice:  []string{"hello", "world"},
+					NestedString: "hello",
+					NestedSlice:  []string{"hello", "world"}},
+				Embedded: Embedded{
+					EmbeddedString: "hello",
+					EmbeddedSlice:  []string{"hello", "world"},
 				},
 			},
+			wantError: nil,
 		},
 		{
 			gotConfig:  cfg{},
