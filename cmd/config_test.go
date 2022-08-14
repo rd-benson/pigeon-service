@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 )
 
 func NewEvent(name string, op fsnotify.Op) fsnotify.Event {
@@ -29,6 +31,7 @@ type AssertRunOnce struct {
 	buffer string
 }
 
+// region TestRunOnce / TestRunOncePerPeriod
 func TestRunOnceSync(t *testing.T) {
 
 	got := results{
@@ -217,4 +220,90 @@ func TestRunOncePerPeriodConcurrent(t *testing.T) {
 			t.Log(got[i], want[i])
 		}
 	}
+}
+
+// endregion
+
+// region TestUnmarshal
+func TestUnmarshal(t *testing.T) {
+
+	type nested struct {
+		String string   `validate:"required"`
+		Slice  []string `validate:"required"`
+	}
+
+	type cfg struct {
+		String string   `validate:"required"`
+		Slice  []string `validate:"required"`
+		Nested nested   `validate:"required"`
+	}
+
+	viper.SetConfigType("yaml")
+
+	cases := []struct {
+		gotConfig  cfg
+		gotError   error
+		source     []byte
+		wantConfig cfg
+		wantError  error
+	}{
+		{
+			gotConfig: cfg{},
+			gotError:  nil,
+			source: []byte(`
+String: hello
+Slice: [hello, world]
+Nested:
+  String: hello
+  Slice: [hello, world]	
+`),
+			wantConfig: cfg{
+				String: "hello",
+				Slice:  []string{"hello", "world"},
+				Nested: nested{
+					String: "hello",
+					Slice:  []string{"hello", "world"},
+				},
+			},
+		},
+		{
+			gotConfig:  cfg{},
+			gotError:   nil,
+			source:     []byte(""),
+			wantConfig: cfg{},
+			wantError:  errors.New("validation error"),
+		},
+		{
+			gotConfig: cfg{},
+			gotError:  nil,
+			source: []byte(`
+		String: "hello"
+		`),
+			wantConfig: cfg{},
+			wantError:  errors.New("validation error"),
+		},
+	}
+
+	viper.SetConfigType("yaml")
+
+	for i, test := range cases {
+		viper.ReadConfig(bytes.NewBuffer(test.source))
+		cases[i].gotError = Unmarshal(&cases[i].gotConfig)
+	}
+
+	for _, test := range cases {
+		if !reflect.DeepEqual(test.gotConfig, test.wantConfig) {
+			t.Errorf("unmarshalling: got %v, wanted %v", test.gotConfig, test.wantConfig)
+		}
+		if test.gotError != nil && test.wantError == nil {
+			t.Errorf("errors: got %v, wanted %v", test.gotError, test.wantError)
+		}
+	}
+
+}
+
+// endregion
+
+func TestDetermineChanges(t *testing.T) {
+
 }

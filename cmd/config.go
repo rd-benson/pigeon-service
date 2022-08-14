@@ -1,12 +1,13 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/go-playground/validator/v10"
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
 
@@ -14,7 +15,8 @@ var (
 	cfgLock    sync.Mutex
 	cfgTimeout = 5 * time.Second
 	ErrBlocked = errors.New("f not called: too many calls to RunOnce")
-	runningCfg map[string]interface{}
+	runningCfg Config
+	tmpCfg     Config
 )
 
 // RunOnce runs f and then blocks any further executions
@@ -50,10 +52,32 @@ func initConfig() {
 	})
 	viper.WatchConfig()
 	// Save running config for comparison on config change
-	runningCfg = viper.AllSettings()
+	if err := Unmarshal(&tmpCfg); err == nil {
+		runningCfg = tmpCfg
+	}
 }
 
 // Determine which parts of configuration have changed
 func determineChanges() {
 	fmt.Println("determineChanges called")
+}
+
+// Unmarshal viper configuration with validation checks
+// pigeon won't start unless the configuration is valid
+func Unmarshal(c interface{}) error {
+	viper.Unmarshal(c)
+	err := validator.New().Struct(c)
+	if err != nil {
+		validationErrors := err.(validator.ValidationErrors)
+		if len(validationErrors) > 0 {
+			if err != nil {
+				return errors.Wrap(err, "validation error")
+			}
+		}
+		return nil
+	}
+	return nil
+}
+
+type Config struct {
 }
