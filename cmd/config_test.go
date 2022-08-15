@@ -238,10 +238,10 @@ func TestUnmarshal(t *testing.T) {
 	}
 
 	type cfg struct {
-		String   string   `validate:"required"`
-		Slice    []string `validate:"required"`
-		Nested   nested   `validate:"required"`
-		Embedded `validate:"required"`
+		String string   `validate:"required"`
+		Slice  []string `validate:"required"`
+		Nested nested
+		Embedded
 	}
 
 	viper.SetConfigType("yaml")
@@ -294,6 +294,38 @@ Embedded:
 		`),
 			wantConfig: cfg{},
 			wantError:  errors.New("validation error"),
+		},
+		{
+			gotConfig: cfg{},
+			gotError:  nil,
+			source: []byte(`
+String: hello
+Slice: [hello, world]
+`),
+			wantConfig: cfg{
+				String: "hello",
+				Slice:  []string{"hello", "world"},
+			},
+			wantError: errors.New("validation error"),
+		},
+		{
+			gotConfig: cfg{},
+			gotError:  nil,
+			source: []byte(`
+String: hello
+Slice: [hello, world]
+Nested:
+  NestedString: hello
+  NestedSlice: [hello, world]
+`),
+			wantConfig: cfg{
+				String: "hello",
+				Slice:  []string{"hello", "world"},
+				Nested: nested{
+					NestedString: "hello",
+					NestedSlice:  []string{"hello", "world"}},
+			},
+			wantError: errors.New("validation error"),
 		},
 	}
 

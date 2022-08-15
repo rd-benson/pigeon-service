@@ -52,14 +52,22 @@ func initConfig() {
 	})
 	viper.WatchConfig()
 	// Save running config for comparison on config change
-	if err := Unmarshal(&tmpCfg); err == nil {
-		runningCfg = tmpCfg
+	// If config errors during init, panic!
+	if err := Unmarshal(&tmpCfg); err != nil {
+		panic(err)
 	}
+	runningCfg = tmpCfg
 }
 
 // Determine which parts of configuration have changed
 func determineChanges() {
-	fmt.Println("determineChanges called")
+	tmpCfg = Config{}
+	if err := Unmarshal(&tmpCfg); err == nil {
+		runningCfg = tmpCfg
+		fmt.Println(runningCfg)
+	} else {
+		fmt.Println(err)
+	}
 }
 
 // Unmarshal viper configuration with validation checks
@@ -80,4 +88,24 @@ func Unmarshal(c interface{}) error {
 }
 
 type Config struct {
+	Broker   Broker   `validate:"unique,required"`
+	Database Database `validate:"unique,required"`
+	Sites    []Site   `validate:"required"`
+}
+
+type Broker struct {
+	FQDN string `validate:"fqdn"`
+	Port uint16 `validate:"numeric"`
+}
+
+type Database struct {
+	FQDN         string `validate:"fqdn"`
+	TokenRead    string `validate:"required"`
+	TokenWrite   string `validate:"required"`
+	Organisation string `validate:"email"`
+}
+
+type Site struct {
+	Name    string
+	Devices []string
 }

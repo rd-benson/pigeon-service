@@ -1,8 +1,8 @@
 broker:
-  url: iot.hivemq.com
+  fqdn: iot.hivemq.com
   port: 1883
 database:
-  url: https://westeurope-1.azure.cloud2.influxdata.com
+  fqdn: westeurope-1.azure.cloud2.influxdata.com
   TokenRead: yXyyfBMlEHjCgyXUXREejJhomgg_Su2JzaV0v0pBcaJvIAAnSB4nz2qYy2LLQSZ1gNPPhEAc8rYg8rJLAmTmJA==
   TokenWrite: yXyyfBMlEHjCgyXUXREejJhomgg_Su2JzaV0v0pBcaJvIAAnSB4nz2qYy2LLQSZ1gNPPhEAc8rYg8rJLAmTmJA==
   organisation: dan.b@ritchiedaffin.com
