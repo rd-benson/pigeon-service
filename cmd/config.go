@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 
 var (
 	cfgLock    sync.Mutex
-	cfgTimeout = 5 * time.Second
+	cfgTimeout = 1 * time.Second
 	ErrBlocked = errors.New("f not called: too many calls to RunOnce")
 	runningCfg Config
 	tmpCfg     Config
@@ -47,7 +48,8 @@ func initConfig() {
 	viper.ReadInConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		RunOncePerPeriod(func() {
-			determineChanges()
+			viper.ReadInConfig()
+			updateRunningConfig()
 		}, &cfgLock, cfgTimeout)
 	})
 	viper.WatchConfig()
@@ -60,14 +62,35 @@ func initConfig() {
 }
 
 // Determine which parts of configuration have changed
-func determineChanges() {
+func updateRunningConfig() {
 	tmpCfg = Config{}
+	prevCfg := runningCfg
 	if err := Unmarshal(&tmpCfg); err == nil {
 		runningCfg = tmpCfg
-		fmt.Println(runningCfg)
 	} else {
+		fmt.Println("errors in config. pigeon will not update.")
 		fmt.Println(err)
+		return
 	}
+	fmt.Println(prevCfg)
+	fmt.Println(runningCfg)
+	// Check if broker config changed
+	if !reflect.DeepEqual(prevCfg.Broker, runningCfg.Broker) {
+		// TODO restart MQTT client
+		fmt.Println("broker config changed")
+	}
+	// Check if database config changed
+	if !reflect.DeepEqual(prevCfg.Database, runningCfg.Database) {
+		// TODO restart database client
+		fmt.Println("database config changed")
+	}
+	// Check if sites config changed
+	if !reflect.DeepEqual(prevCfg.Sites, runningCfg.Sites) {
+		// TODO subscribe/unsubscribe to topics
+		// TODO remove connection to database
+		fmt.Println("sites config changed")
+	}
+
 }
 
 // Unmarshal viper configuration with validation checks
@@ -88,8 +111,8 @@ func Unmarshal(c interface{}) error {
 }
 
 type Config struct {
-	Broker   Broker   `validate:"unique,required"`
-	Database Database `validate:"unique,required"`
+	Broker   Broker   `validate:"required"`
+	Database Database `validate:"required"`
 	Sites    []Site   `validate:"required"`
 }
 
