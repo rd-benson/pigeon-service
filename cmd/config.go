@@ -73,7 +73,7 @@ func updateRunningConfig() {
 	}
 	// Check if broker config changed
 	if !reflect.DeepEqual(prevCfg.MQTT, runningCfg.MQTT) {
-		restartMqttClient()
+		restartMQTT()
 	}
 	// Check if database config changed
 	if !reflect.DeepEqual(prevCfg.InfluxDB, runningCfg.InfluxDB) {
@@ -115,6 +115,11 @@ type Config struct {
 type MQTT struct {
 	FQDN string `validate:"fqdn"`
 	Port uint16 `validate:"numeric"`
+}
+
+// URI returns MQTT broker URI
+func (m *MQTT) URI() string {
+	return fmt.Sprintf("tcp://%v:%v", m.FQDN, m.Port)
 }
 
 type InfluxDB struct {
