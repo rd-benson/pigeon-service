@@ -68,19 +68,15 @@ func updateRunningConfig() {
 	if err := Unmarshal(&tmpCfg); err == nil {
 		runningCfg = tmpCfg
 	} else {
-		fmt.Println("errors in config. pigeon will not update.")
-		fmt.Println(err)
+		fmt.Println("pigeon will not update due to errors in config: ", err)
 		return
 	}
-	fmt.Println(prevCfg)
-	fmt.Println(runningCfg)
 	// Check if broker config changed
-	if !reflect.DeepEqual(prevCfg.Broker, runningCfg.Broker) {
-		// TODO restart MQTT client
-		fmt.Println("broker config changed")
+	if !reflect.DeepEqual(prevCfg.MQTT, runningCfg.MQTT) {
+		restartMqttClient()
 	}
 	// Check if database config changed
-	if !reflect.DeepEqual(prevCfg.Database, runningCfg.Database) {
+	if !reflect.DeepEqual(prevCfg.InfluxDB, runningCfg.InfluxDB) {
 		// TODO restart database client
 		fmt.Println("database config changed")
 	}
@@ -111,17 +107,17 @@ func Unmarshal(c interface{}) error {
 }
 
 type Config struct {
-	Broker   Broker   `validate:"required"`
-	Database Database `validate:"required"`
+	MQTT     MQTT     `validate:"required"`
+	InfluxDB InfluxDB `validate:"required"`
 	Sites    []Site   `validate:"required"`
 }
 
-type Broker struct {
+type MQTT struct {
 	FQDN string `validate:"fqdn"`
 	Port uint16 `validate:"numeric"`
 }
 
-type Database struct {
+type InfluxDB struct {
 	FQDN         string `validate:"fqdn"`
 	TokenRead    string `validate:"required"`
 	TokenWrite   string `validate:"required"`

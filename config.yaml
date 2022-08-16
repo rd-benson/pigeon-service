@@ -1,7 +1,7 @@
-broker:
-  fqdn: iot.hivemq.com
+mqtt:
+  fqdn: broker.hivemq.com
   port: 1883
-database:
+influxdb:
   fqdn: westeurope-1.azure.cloud2.influxdata.com
   TokenRead: yXyyfBMlEHjCgyXUXREejJhomgg_Su2JzaV0v0pBcaJvIAAnSB4nz2qYy2LLQSZ1gNPPhEAc8rYg8rJLAmTmJA==
   TokenWrite: yXyyfBMlEHjCgyXUXREejJhomgg_Su2JzaV0v0pBcaJvIAAnSB4nz2qYy2LLQSZ1gNPPhEAc8rYg8rJLAmTmJA==
