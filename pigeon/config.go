@@ -1,4 +1,4 @@
-package cmd
+package pigeon
 
 import (
 	"fmt"
@@ -13,11 +13,10 @@ import (
 )
 
 var (
-	cfgLock    sync.Mutex
-	cfgTimeout = 1 * time.Second
+	v          = viper.New()
+	lock       = new(sync.Mutex)
+	timeout    = 500 * time.Millisecond
 	ErrBlocked = errors.New("f not called: too many calls to RunOnce")
-	runningCfg Config
-	tmpCfg     Config
 )
 
 // RunOnce runs f and then blocks any further executions
@@ -41,58 +40,36 @@ func RunOncePerPeriod(f func(), lock *sync.Mutex, period time.Duration) error {
 	return ErrBlocked
 }
 
-// Initialise viper using custom OnConfigChange function that stops multiple ops
-// during a short period of time
-func initConfig() {
-	viper.AddConfigPath("./")
-	viper.ReadInConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		RunOncePerPeriod(func() {
-			viper.ReadInConfig()
-			updateRunningConfig()
-		}, &cfgLock, cfgTimeout)
-	})
-	viper.WatchConfig()
-	// Save running config for comparison on config change
-	// If config errors during init, panic!
-	if err := Unmarshal(&tmpCfg); err != nil {
-		panic(err)
-	}
-	runningCfg = tmpCfg
+type Config struct {
+	MQTT     MQTT     `validate:"required"`
+	InfluxDB InfluxDB `validate:"required"`
+	Sites    []Site   `validate:"required"`
 }
 
-// Determine which parts of configuration have changed
-func updateRunningConfig() {
-	tmpCfg = Config{}
-	prevCfg := runningCfg
-	if err := Unmarshal(&tmpCfg); err == nil {
-		runningCfg = tmpCfg
-	} else {
-		fmt.Println("pigeon will not update due to errors in config: ", err)
-		return
+// Initialise viper using custom OnConfigChange function that stops multiple ops
+// during a short period of time
+func WatchConfig(path string) *Config {
+	cfg := new(Config)
+	v.AddConfigPath(path)
+	v.ReadInConfig()
+	// If config errors during new, panic!
+	if err := Unmarshal(cfg); err != nil {
+		panic(err)
 	}
-	// Check if broker config changed
-	if !reflect.DeepEqual(prevCfg.MQTT, runningCfg.MQTT) {
-		restartMQTT()
-	}
-	// Check if database config changed
-	if !reflect.DeepEqual(prevCfg.InfluxDB, runningCfg.InfluxDB) {
-		// TODO restart database client
-		fmt.Println("database config changed")
-	}
-	// Check if sites config changed
-	if !reflect.DeepEqual(prevCfg.Sites, runningCfg.Sites) {
-		// TODO subscribe/unsubscribe to topics
-		// TODO remove connection to database
-		fmt.Println("sites config changed")
-	}
-
+	v.OnConfigChange(func(e fsnotify.Event) {
+		RunOncePerPeriod(func() {
+			v.ReadInConfig()
+			OnConfigChange(cfg)
+		}, lock, timeout)
+	})
+	v.WatchConfig()
+	return cfg
 }
 
 // Unmarshal viper configuration with validation checks
 // pigeon won't start unless the configuration is valid
 func Unmarshal(c interface{}) error {
-	viper.Unmarshal(c)
+	v.Unmarshal(c)
 	err := validator.New().Struct(c)
 	if err != nil {
 		validationErrors := err.(validator.ValidationErrors)
@@ -106,15 +83,38 @@ func Unmarshal(c interface{}) error {
 	return nil
 }
 
-type Config struct {
-	MQTT     MQTT     `validate:"required"`
-	InfluxDB InfluxDB `validate:"required"`
-	Sites    []Site   `validate:"required"`
+// Determine which parts of configuration have changed
+func OnConfigChange(c *Config) {
+	tmpCfg := Config{}
+	prevCfg := *c
+	if err := Unmarshal(&tmpCfg); err == nil {
+		*c = tmpCfg
+	} else {
+		fmt.Println("pigeon will not update due to errors in config: ", err)
+		return
+	}
+	// Check if broker config changed
+	if !reflect.DeepEqual(prevCfg.MQTT, (*c).MQTT) {
+		fmt.Println("broker config changed")
+		// restartMQTT()
+	}
+	// Check if database config changed
+	if !reflect.DeepEqual(prevCfg.InfluxDB, (*c).InfluxDB) {
+		// TODO restart database client
+		fmt.Println("database config changed")
+	}
+	// Check if sites config changed
+	if !reflect.DeepEqual(prevCfg.Sites, (*c).Sites) {
+		// TODO subscribe/unsubscribe to topics
+		// TODO remove connection to database
+		fmt.Println("sites config changed")
+	}
+
 }
 
 type MQTT struct {
-	FQDN string `validate:"fqdn"`
-	Port uint16 `validate:"numeric"`
+	FQDN string `validate:"required"`
+	Port uint16 `validate:"required"`
 }
 
 // URI returns MQTT broker URI
@@ -123,7 +123,7 @@ func (m *MQTT) URI() string {
 }
 
 type InfluxDB struct {
-	FQDN         string `validate:"fqdn"`
+	FQDN         string `validate:"required"`
 	TokenRead    string `validate:"required"`
 	TokenWrite   string `validate:"required"`
 	Organisation string `validate:"email"`
@@ -132,4 +132,14 @@ type InfluxDB struct {
 type Site struct {
 	Name    string
 	Devices []string
+}
+
+// Topic returns MQTT topic from site
+// Easylog should be configured to "publish devices separately"
+func (s *Site) Topics() []string {
+	t := []string{}
+	for _, device := range s.Devices {
+		t = append(t, fmt.Sprintf("%v/%v", s.Name, device))
+	}
+	return t
 }

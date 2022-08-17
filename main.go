@@ -3,13 +3,11 @@ package main
 import (
 	"time"
 
-	"github.com/rd-benson/pigeon-service/cmd"
+	"github.com/rd-benson/pigeon-service/pigeon"
 )
 
 func main() {
-	cmd.Start()
-
-	// Serve forever
+	pigeon.WatchConfig("./")
 	for {
 		time.Sleep(1 * time.Second)
 	}

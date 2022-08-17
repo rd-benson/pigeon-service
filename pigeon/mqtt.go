@@ -1,6 +1,6 @@
-package cmd
+package pigeon
 
-import (
+/* import (
 	"fmt"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -12,9 +12,9 @@ var (
 )
 
 // Start connection to MQTT broker given in configuration
-func startMQTT() {
+func startMQTT(cfg *Config) error {
 	fmt.Println("starting MQTT client ...")
-	fmt.Printf("connecting to: %v\n", runningCfg.MQTT.URI())
+	fmt.Printf("connecting to: %v\n", cfg.MQTT.URI())
 	// Options
 	mqttClientOptions.AddBroker(runningCfg.MQTT.URI())
 	mqttClientOptions.SetClientID("pigeon")
@@ -23,7 +23,10 @@ func startMQTT() {
 	})
 	// Client proper
 	mqttClient = mqtt.NewClient(mqttClientOptions)
-	mqttClient.Connect()
+	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
+		return token.Error()
+	}
+	return nil
 }
 
 func restartMQTT() {
@@ -32,4 +35,4 @@ func restartMQTT() {
 	mqttClient.Disconnect(500)
 	// Start fresh connection
 	startMQTT()
-}
+} */
