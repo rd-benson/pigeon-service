@@ -14,20 +14,11 @@ import (
 
 var (
 	v          = viper.New()
+	cfg        = new(Config)
 	lock       = new(sync.Mutex)
 	timeout    = 500 * time.Millisecond
 	ErrBlocked = errors.New("f not called: too many calls to RunOnce")
 )
-
-// RunOnce runs f and then blocks any further executions
-// If f ran, return nil, else ErrBlocked
-func RunOnce(f func(), lock *sync.Mutex) error {
-	if lock.TryLock() {
-		f()
-		return nil
-	}
-	return ErrBlocked
-}
 
 // RunOncePerPeriod runs f and then blocks any further executions within the timeout period
 // If f ran, return nil, else ErrBlocked
@@ -48,8 +39,7 @@ type Config struct {
 
 // Initialise viper using custom OnConfigChange function that stops multiple ops
 // during a short period of time
-func WatchConfig(path string) *Config {
-	cfg := new(Config)
+func WatchConfig(path string) {
 	v.AddConfigPath(path)
 	v.ReadInConfig()
 	// If config errors during new, panic!
@@ -59,11 +49,14 @@ func WatchConfig(path string) *Config {
 	v.OnConfigChange(func(e fsnotify.Event) {
 		RunOncePerPeriod(func() {
 			v.ReadInConfig()
-			OnConfigChange(cfg)
+			// Occasionally viper fails to read
+			if len(v.AllSettings()) == 0 {
+				return
+			}
+			OnConfigChange()
 		}, lock, timeout)
 	})
 	v.WatchConfig()
-	return cfg
 }
 
 // Unmarshal viper configuration with validation checks
@@ -84,27 +77,27 @@ func Unmarshal(c interface{}) error {
 }
 
 // Determine which parts of configuration have changed
-func OnConfigChange(c *Config) {
+func OnConfigChange() {
 	tmpCfg := Config{}
-	prevCfg := *c
+	prevCfg := *cfg
 	if err := Unmarshal(&tmpCfg); err == nil {
-		*c = tmpCfg
+		*cfg = tmpCfg
 	} else {
 		fmt.Println("pigeon will not update due to errors in config: ", err)
 		return
 	}
 	// Check if broker config changed
-	if !reflect.DeepEqual(prevCfg.MQTT, (*c).MQTT) {
+	if !reflect.DeepEqual(prevCfg.MQTT, (*cfg).MQTT) {
 		fmt.Println("broker config changed")
 		// restartMQTT()
 	}
 	// Check if database config changed
-	if !reflect.DeepEqual(prevCfg.InfluxDB, (*c).InfluxDB) {
+	if !reflect.DeepEqual(prevCfg.InfluxDB, (*cfg).InfluxDB) {
 		// TODO restart database client
 		fmt.Println("database config changed")
 	}
 	// Check if sites config changed
-	if !reflect.DeepEqual(prevCfg.Sites, (*c).Sites) {
+	if !reflect.DeepEqual(prevCfg.Sites, (*cfg).Sites) {
 		// TODO subscribe/unsubscribe to topics
 		// TODO remove connection to database
 		fmt.Println("sites config changed")
