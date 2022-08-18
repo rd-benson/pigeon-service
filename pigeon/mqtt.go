@@ -1,38 +1,20 @@
 package pigeon
 
-/* import (
-	"fmt"
-
+import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-var (
-	mqttClient        mqtt.Client
-	mqttClientOptions = mqtt.NewClientOptions()
-)
-
-// Start connection to MQTT broker given in configuration
-func startMQTT(cfg *Config) error {
-	fmt.Println("starting MQTT client ...")
-	fmt.Printf("connecting to: %v\n", cfg.MQTT.URI())
-	// Options
-	mqttClientOptions.AddBroker(runningCfg.MQTT.URI())
-	mqttClientOptions.SetClientID("pigeon")
-	mqttClientOptions.SetOnConnectHandler(func(c mqtt.Client) {
-		fmt.Println("... connected!")
+func InitMqtt() (*mqtt.ClientOptions, *mqtt.Client) {
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker(cfg.MQTT.URI())
+	opts.SetClientID("pigeon")
+	opts.SetDefaultPublishHandler(func(c mqtt.Client, m mqtt.Message) {
+		// fmt.Printf("TOPIC: %v\n", m.Topic())
+		// fmt.Printf("PAYLOAD: %v\n", string(m.Payload()))
 	})
-	// Client proper
-	mqttClient = mqtt.NewClient(mqttClientOptions)
-	if token := mqttClient.Connect(); token.Wait() && token.Error() != nil {
-		return token.Error()
+	client := mqtt.NewClient(opts)
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		return opts, nil
 	}
-	return nil
+	return opts, &client
 }
-
-func restartMQTT() {
-	fmt.Println("broker config changed: restarting MQTT client")
-	// Close existing connection
-	mqttClient.Disconnect(500)
-	// Start fresh connection
-	startMQTT()
-} */
