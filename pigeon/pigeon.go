@@ -39,8 +39,8 @@ func (p *Pigeon) Unsubscribe() {
 
 type Flock struct {
 	mqtt struct {
-		opts   mqtt.ClientOptions
-		client mqtt.Client
+		opts   *mqtt.ClientOptions
+		client *mqtt.Client
 	}
 	active map[string][]*Pigeon
 }
@@ -48,26 +48,14 @@ type Flock struct {
 func NewFlock() *Flock {
 	f := new(Flock)
 	// MQTT
-	// Options
-	f.mqtt.opts = *mqtt.NewClientOptions()
-	f.mqtt.opts.AddBroker(cfg.MQTT.URI())
-	f.mqtt.opts.SetClientID("pigeon")
-	f.mqtt.opts.SetDefaultPublishHandler(func(c mqtt.Client, m mqtt.Message) {
-		// fmt.Printf("TOPIC: %v\n", m.Topic())
-		// fmt.Printf("PAYLOAD: %v\n", string(m.Payload()))
-	})
-	// Client
-	f.mqtt.client = mqtt.NewClient(&f.mqtt.opts)
-	if token := f.mqtt.client.Connect(); token.Wait() && token.Error() != nil {
-		panic(token.Error())
-	}
+	f.mqtt.opts, f.mqtt.client = InitMqtt()
 
 	// Pigeons
 	active := make(map[string][]*Pigeon)
 	for _, site := range cfg.Sites {
 		var pigeons []*Pigeon
 		for _, topic := range site.Topics() {
-			pigeon := NewPigeon(&f.mqtt.client, topic, 1, nil)
+			pigeon := NewPigeon(f.mqtt.client, topic, 1, nil)
 			// Subscribe
 			pigeon.Subscribe()
 			pigeons = append(pigeons, pigeon)
@@ -82,14 +70,17 @@ func NewFlock() *Flock {
 func (f *Flock) Serve() {
 	// Wait for cfg changes
 	go func() {
-		fmt.Println("pigeon serve called")
 		for {
 			select {
 			case <-cfgChange.mqtt:
+				// TODO restart MQTT client
 				fmt.Println("MQTT config changed!")
 			case <-cfgChange.influxdb:
+				// TODO restart database client
 				fmt.Println("Database config changed!")
 			case <-cfgChange.sites:
+				// TODO subscribe/unsubscribe to topics
+				// TODO remove connection to database
 				fmt.Println("Sites config changed!")
 			}
 		}

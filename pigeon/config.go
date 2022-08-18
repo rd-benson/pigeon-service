@@ -100,19 +100,14 @@ func OnConfigChange() {
 		fmt.Println("pigeon will not update due to errors in config: ", err)
 		return
 	}
-	// Check if broker config changed
+	// Check for configuration changes and send signal to flock
 	if !reflect.DeepEqual(prevCfg.MQTT, (*cfg).MQTT) {
 		cfgChange.mqtt <- true
 	}
-	// Check if database config changed
 	if !reflect.DeepEqual(prevCfg.InfluxDB, (*cfg).InfluxDB) {
-		// TODO restart database client
 		cfgChange.influxdb <- true
 	}
-	// Check if sites config changed
 	if !reflect.DeepEqual(prevCfg.Sites, (*cfg).Sites) {
-		// TODO subscribe/unsubscribe to topics
-		// TODO remove connection to database
 		cfgChange.sites <- true
 	}
 
