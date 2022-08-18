@@ -83,7 +83,7 @@ func (f *Flock) Serve() {
 				fmt.Println("Database config changed!")
 			case <-cfgChange.sites:
 				// Subscribe/unsubscribe to topics
-				// f.audit()
+				f.audit(cfgChange.prevCfg)
 				// TODO remove connection to database
 			}
 		}
@@ -99,4 +99,12 @@ func (f *Flock) startMQTT() {
 		fmt.Println("pigeon cannot continue: ", err)
 		os.Exit(1)
 	}
+}
+
+// audit handles configuration changes to sites
+// audit manages MQTT subscriptions and forwarding data on to InfluxDB
+func (f *Flock) audit(prevCfg Config) {
+	// Determine changes to site
+	// TODO added/removed/changed sites?
+	// TODO added/removed/changed site devices?
 }

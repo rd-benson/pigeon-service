@@ -12,9 +12,14 @@ import (
 )
 
 var (
-	v                = viper.New()
-	cfg              = new(Config)
-	cfgChange        = OnChangeChan{make(chan bool, 1), make(chan bool, 1), make(chan bool, 1)}
+	v         = viper.New()
+	cfg       = new(Config)
+	cfgChange = OnChangeChan{
+		make(chan bool, 1),
+		make(chan bool, 1),
+		make(chan bool, 1),
+		Config{},
+	}
 	allowCfgChange   = make(chan bool, 1)
 	cfgChangeLimiter *time.Ticker
 )
@@ -87,6 +92,7 @@ type OnChangeChan struct {
 	mqtt     chan bool
 	influxdb chan bool
 	sites    chan bool
+	prevCfg  Config
 }
 
 // Determine which parts of configuration have changed
@@ -110,7 +116,7 @@ func OnConfigChange() {
 	if !reflect.DeepEqual(prevCfg.Sites, (*cfg).Sites) {
 		cfgChange.sites <- true
 	}
-
+	cfgChange.prevCfg = prevCfg
 }
 
 // MQTT configuration
