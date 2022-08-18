@@ -2,6 +2,7 @@ package pigeon
 
 import (
 	"fmt"
+	"os"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -48,7 +49,7 @@ type Flock struct {
 func NewFlock() *Flock {
 	f := new(Flock)
 	// MQTT
-	f.mqtt.opts, f.mqtt.client = InitMqtt()
+	f.initMqtt()
 
 	// Pigeons
 	active := make(map[string][]*Pigeon)
@@ -73,8 +74,10 @@ func (f *Flock) Serve() {
 		for {
 			select {
 			case <-cfgChange.mqtt:
-				// TODO restart MQTT client
-				fmt.Println("MQTT config changed!")
+				// TODO could instead try to create new client connection
+				// on failure prompt user (catch typos etc.)
+				// For now, just reinit client (and don't make mistakes in config...)
+				f.initMqtt()
 			case <-cfgChange.influxdb:
 				// TODO restart database client
 				fmt.Println("Database config changed!")
@@ -85,4 +88,15 @@ func (f *Flock) Serve() {
 			}
 		}
 	}()
+}
+
+func (f *Flock) initMqtt() {
+	var err error
+	f.mqtt.opts, f.mqtt.client, err = InitMqtt()
+	if err != nil {
+		// Pigeon cannot operate without the client, exit with code 1
+		// if connection was unsuccessful
+		fmt.Println("pigeon cannot continue: ", err)
+		os.Exit(1)
+	}
 }
