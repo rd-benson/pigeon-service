@@ -4,9 +4,9 @@ import (
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
-// InitMqtt returns MQTT options, client and error
+// NewMQTT returns MQTT options, client and error
 // Error is nil on success
-func InitMqtt() (*mqtt.ClientOptions, *mqtt.Client, error) {
+func NewMQTT() (*mqtt.ClientOptions, *mqtt.Client, error) {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(cfg.MQTT.URI())
 	opts.SetClientID("pigeon")

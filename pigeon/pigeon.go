@@ -49,7 +49,7 @@ type Flock struct {
 func NewFlock() *Flock {
 	f := new(Flock)
 	// MQTT
-	f.initMqtt()
+	f.startMQTT()
 
 	// Pigeons
 	active := make(map[string][]*Pigeon)
@@ -77,25 +77,25 @@ func (f *Flock) Serve() {
 				// TODO could instead try to create new client connection
 				// on failure prompt user (catch typos etc.)
 				// For now, just reinit client (and don't make mistakes in config...)
-				f.initMqtt()
+				f.startMQTT()
 			case <-cfgChange.influxdb:
 				// TODO restart database client
 				fmt.Println("Database config changed!")
 			case <-cfgChange.sites:
-				// TODO subscribe/unsubscribe to topics
+				// Subscribe/unsubscribe to topics
+				// f.audit()
 				// TODO remove connection to database
-				fmt.Println("Sites config changed!")
 			}
 		}
 	}()
 }
 
-func (f *Flock) initMqtt() {
+// startMQTT links flock to an MQTT client
+// If the connection to the client is bad, pigeon will exit with status code 1
+func (f *Flock) startMQTT() {
 	var err error
-	f.mqtt.opts, f.mqtt.client, err = InitMqtt()
+	f.mqtt.opts, f.mqtt.client, err = NewMQTT()
 	if err != nil {
-		// Pigeon cannot operate without the client, exit with code 1
-		// if connection was unsuccessful
 		fmt.Println("pigeon cannot continue: ", err)
 		os.Exit(1)
 	}
