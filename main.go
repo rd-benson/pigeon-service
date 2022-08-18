@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	pigeon.WatchConfig("./")
+	pigeon.WatchConfig("./test")
 	flock := pigeon.NewFlock()
 	flock.Serve()
 	for {
