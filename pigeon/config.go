@@ -3,7 +3,6 @@ package pigeon
 import (
 	"fmt"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -13,33 +12,34 @@ import (
 )
 
 var (
-	v          = viper.New()
-	cfg        = new(Config)
-	lock       = new(sync.Mutex)
-	timeout    = 500 * time.Millisecond
-	cfgChange  = OnChangeChan{make(chan bool, 1), make(chan bool, 1), make(chan bool, 1)}
-	ErrBlocked = errors.New("f not called: too many calls to run again")
+	v                = viper.New()
+	cfg              = new(Config)
+	cfgChange        = OnChangeChan{make(chan bool, 1), make(chan bool, 1), make(chan bool, 1)}
+	allowCfgChange   = make(chan bool, 1)
+	cfgChangeLimiter *time.Ticker
 )
 
-// RunOncePerPeriod runs f and then blocks any further executions within the timeout period
-// If f ran, return nil, else ErrBlocked
-func RunOncePerPeriod(f func(), lock *sync.Mutex, period time.Duration) error {
-	if lock.TryLock() {
-		f()
-		time.AfterFunc(period, lock.Unlock)
-		return nil
-	}
-	return ErrBlocked
+func init() {
+	// fsnotify fires twice when edited with rich text editor
+	// below allows only one call per second
+	allowCfgChange <- true
+	cfgChangeLimiter = time.NewTicker(1 * time.Second)
+	go func() {
+		for range cfgChangeLimiter.C {
+			allowCfgChange <- true
+		}
+	}()
 }
 
+// Main pigeon configuration
 type Config struct {
 	MQTT     MQTT     `validate:"required"`
 	InfluxDB InfluxDB `validate:"required"`
 	Sites    []Site   `validate:"required"`
 }
 
-// Initialise viper using custom OnConfigChange function that stops multiple ops
-// during a short period of time
+// Initialise viper, watch for changes and send signal to channel
+// specifiying which aspect of channel changed via OnConfigChange
 func WatchConfig(path string) {
 	v.AddConfigPath(path)
 	v.ReadInConfig()
@@ -47,15 +47,20 @@ func WatchConfig(path string) {
 	if err := Unmarshal(cfg); err != nil {
 		panic(err)
 	}
+
 	v.OnConfigChange(func(e fsnotify.Event) {
-		RunOncePerPeriod(func() {
-			v.ReadInConfig()
-			// Occasionally viper fails to read
-			if len(v.AllSettings()) == 0 {
-				return
-			}
+		v.ReadInConfig()
+		// Occasionally viper fails to read
+		if len(v.AllSettings()) == 0 {
+			return
+		}
+
+		select {
+		case <-allowCfgChange:
 			OnConfigChange()
-		}, lock, timeout)
+		default:
+			return
+		}
 	})
 	v.WatchConfig()
 }
@@ -77,6 +82,7 @@ func Unmarshal(c interface{}) error {
 	return nil
 }
 
+// OnChangeChan contains channels to notify the flock of a config change
 type OnChangeChan struct {
 	mqtt     chan bool
 	influxdb chan bool
@@ -84,6 +90,7 @@ type OnChangeChan struct {
 }
 
 // Determine which parts of configuration have changed
+// and signal flock via OnChangeChan
 func OnConfigChange() {
 	tmpCfg := Config{}
 	prevCfg := *cfg
@@ -111,6 +118,7 @@ func OnConfigChange() {
 
 }
 
+// MQTT configuration
 type MQTT struct {
 	FQDN string `validate:"required"`
 	Port uint16 `validate:"required"`
@@ -121,6 +129,7 @@ func (m *MQTT) URI() string {
 	return fmt.Sprintf("tcp://%v:%v", m.FQDN, m.Port)
 }
 
+// InfluxDB configuration
 type InfluxDB struct {
 	FQDN         string `validate:"required"`
 	TokenRead    string `validate:"required"`
@@ -128,6 +137,7 @@ type InfluxDB struct {
 	Organisation string `validate:"email"`
 }
 
+// Site configuration
 type Site struct {
 	Name    string
 	Devices []string

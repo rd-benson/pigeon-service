@@ -2,7 +2,6 @@ package pigeon
 
 import (
 	"fmt"
-	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -92,9 +91,6 @@ func (f *Flock) Serve() {
 				fmt.Println("Database config changed!")
 			case <-cfgChange.sites:
 				fmt.Println("Sites config changed!")
-			default:
-				fmt.Println("Config unchanged!")
-				time.Sleep(timeout)
 			}
 		}
 	}()
