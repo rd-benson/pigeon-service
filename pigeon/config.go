@@ -17,7 +17,8 @@ var (
 	cfg        = new(Config)
 	lock       = new(sync.Mutex)
 	timeout    = 500 * time.Millisecond
-	ErrBlocked = errors.New("f not called: too many calls to RunOnce")
+	cfgChange  = OnChangeChan{make(chan bool, 1), make(chan bool, 1), make(chan bool, 1)}
+	ErrBlocked = errors.New("f not called: too many calls to run again")
 )
 
 // RunOncePerPeriod runs f and then blocks any further executions within the timeout period
@@ -76,6 +77,12 @@ func Unmarshal(c interface{}) error {
 	return nil
 }
 
+type OnChangeChan struct {
+	mqtt     chan bool
+	influxdb chan bool
+	sites    chan bool
+}
+
 // Determine which parts of configuration have changed
 func OnConfigChange() {
 	tmpCfg := Config{}
@@ -88,19 +95,18 @@ func OnConfigChange() {
 	}
 	// Check if broker config changed
 	if !reflect.DeepEqual(prevCfg.MQTT, (*cfg).MQTT) {
-		fmt.Println("broker config changed")
-		// restartMQTT()
+		cfgChange.mqtt <- true
 	}
 	// Check if database config changed
 	if !reflect.DeepEqual(prevCfg.InfluxDB, (*cfg).InfluxDB) {
 		// TODO restart database client
-		fmt.Println("database config changed")
+		cfgChange.influxdb <- true
 	}
 	// Check if sites config changed
 	if !reflect.DeepEqual(prevCfg.Sites, (*cfg).Sites) {
 		// TODO subscribe/unsubscribe to topics
 		// TODO remove connection to database
-		fmt.Println("sites config changed")
+		cfgChange.sites <- true
 	}
 
 }
