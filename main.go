@@ -9,7 +9,7 @@ import (
 func main() {
 	pigeon.WatchConfig("./test")
 	flock := pigeon.NewFlock()
-	flock.Serve()
+	flock.Watch()
 	for {
 		time.Sleep(1 * time.Second)
 	}

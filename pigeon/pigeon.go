@@ -8,7 +8,7 @@ import (
 	"github.com/rd-benson/pigeon-service/common"
 )
 
-// Pigeon carries data from an MQTT message to InfluxDB
+// Pigeon carries data from an MQTT message to InfluxDB: one pigeon per site
 // Pigeon struct contains all necessary information to:
 // - get data from MQTT broker (topic, qos)
 // TODO
@@ -43,6 +43,7 @@ func (p *Pigeon) Unsubscribe(topics ...string) {
 	}
 }
 
+// Flock manages all pigeons
 type Flock struct {
 	mqtt struct {
 		opts   *mqtt.ClientOptions
@@ -63,8 +64,8 @@ func NewFlock() *Flock {
 	return f
 }
 
-func (f *Flock) Serve() {
-	// Wait for cfg changes
+// Watch for config changes and command pigeons accordingly
+func (f *Flock) Watch() {
 	go func() {
 		for {
 			select {
