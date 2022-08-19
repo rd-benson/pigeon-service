@@ -43,6 +43,15 @@ type Config struct {
 	Sites    []Site   `validate:"required"`
 }
 
+// SiteMap returns a map of site names to device topics
+func (c *Config) Map() map[string][]string {
+	m := make(map[string][]string)
+	for _, site := range c.Sites {
+		m[site.Name] = site.Topics()
+	}
+	return m
+}
+
 // Initialise viper, watch for changes and send signal to channel
 // specifiying which aspect of channel changed via OnConfigChange
 func WatchConfig(path string) {
