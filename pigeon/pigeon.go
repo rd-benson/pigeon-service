@@ -5,7 +5,6 @@ import (
 	"os"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/rd-benson/pigeon-service/common"
 )
 
 // Pigeon carries data from an MQTT message to InfluxDB
@@ -15,28 +14,32 @@ import (
 // - pass data to InfluxDB (callback, bucket)
 type Pigeon struct {
 	mqtt     *mqtt.Client
-	topic    string
+	topics   []string
 	qos      byte
 	callback mqtt.MessageHandler
 }
 
-func NewPigeon(mqtt *mqtt.Client, topic string, qos byte, callback mqtt.MessageHandler) *Pigeon {
+func NewPigeon(mqtt *mqtt.Client, topics []string, qos byte, callback mqtt.MessageHandler) *Pigeon {
 	return &Pigeon{
 		mqtt:     mqtt,
-		topic:    topic,
+		topics:   topics,
 		qos:      qos,
 		callback: callback,
 	}
 }
 
-// Subscribe to topic
-func (p *Pigeon) Subscribe() {
-	(*p.mqtt).Subscribe(p.topic, p.qos, p.callback)
+// Subscribe to topic(s)
+func (p *Pigeon) Subscribe(topics ...string) {
+	for _, topic := range topics {
+		(*p.mqtt).Subscribe(topic, p.qos, p.callback)
+	}
 }
 
-// Unsubscribe from topic
-func (p *Pigeon) Unsubscribe() {
-	(*p.mqtt).Unsubscribe(p.topic)
+// Unsubscribe from topic(s)
+func (p *Pigeon) Unsubscribe(topics ...string) {
+	for _, topic := range topics {
+		(*p.mqtt).Unsubscribe(topic)
+	}
 }
 
 type Flock struct {
@@ -44,7 +47,7 @@ type Flock struct {
 		opts   *mqtt.ClientOptions
 		client *mqtt.Client
 	}
-	active map[string][]*Pigeon
+	active map[string]*Pigeon
 }
 
 func NewFlock() *Flock {
@@ -53,15 +56,11 @@ func NewFlock() *Flock {
 	f.startMQTT()
 
 	// Pigeons
-	active := make(map[string][]*Pigeon)
+	active := make(map[string]*Pigeon)
 	for siteName, topics := range cfg.Map() {
-		var pigeons []*Pigeon
-		for _, topic := range topics {
-			pigeon := NewPigeon(f.mqtt.client, topic, 1, nil)
-			pigeon.Subscribe()
-			pigeons = append(pigeons, pigeon)
-		}
-		active[siteName] = pigeons
+		pigeon := NewPigeon(f.mqtt.client, topics, 1, nil)
+		pigeon.Subscribe(pigeon.topics...)
+		active[siteName] = pigeon
 	}
 	f.active = active
 
@@ -83,7 +82,7 @@ func (f *Flock) Serve() {
 				fmt.Println("Database config changed!")
 			case <-cfgChange.sites:
 				// Subscribe/unsubscribe to topics
-				f.audit(cfgChange.prevCfg)
+				// f.audit(cfgChange.prevCfg)
 				// TODO remove connection to database
 			}
 		}
@@ -101,18 +100,21 @@ func (f *Flock) startMQTT() {
 	}
 }
 
-// audit handles configuration changes to sites
+/* // audit handles configuration changes to sites
 // audit manages MQTT subscriptions and forwarding data on to InfluxDB
 func (f *Flock) audit(prevCfg Config) {
 	add, remove := common.MapDiffSlice(prevCfg.Map(), cfg.Map())
-	subscribe := []string{}
-	unsubscribe := []string{}
-	for _, v := range add {
-		subscribe = append(subscribe, v...)
+	for siteName, topics := range add {
+		var pigeons []*Pigeon
+		for _, topic := range topics {
+			pigeon := NewPigeon(f.mqtt.client, topic, 1, nil)
+			pigeon.Subscribe()
+			pigeons = append(pigeons, pigeon)
+		}
+		f.active[siteName] = pigeons
 	}
-	for _, v := range remove {
-		unsubscribe = append(unsubscribe, v...)
+	for siteName, topics := range remove {
+		for _, pigeon :=
+		f.active[siteName] = pigeons
 	}
-	fmt.Println("subscribe: ", subscribe)
-	fmt.Println("unsubscribe: ", unsubscribe)
-}
+} */
