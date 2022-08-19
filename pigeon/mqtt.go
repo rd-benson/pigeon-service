@@ -1,6 +1,8 @@
 package pigeon
 
 import (
+	"fmt"
+
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
@@ -11,7 +13,7 @@ func NewMQTT() (*mqtt.ClientOptions, *mqtt.Client, error) {
 	opts.AddBroker(cfg.MQTT.URI())
 	opts.SetClientID("pigeon")
 	opts.SetDefaultPublishHandler(func(c mqtt.Client, m mqtt.Message) {
-		// fmt.Printf("TOPIC: %v\n", m.Topic())
+		fmt.Printf("TOPIC: %v\n", m.Topic())
 		// fmt.Printf("PAYLOAD: %v\n", string(m.Payload()))
 	})
 	client := mqtt.NewClient(opts)

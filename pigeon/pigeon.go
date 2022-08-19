@@ -5,6 +5,7 @@ import (
 	"os"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/rd-benson/pigeon-service/common"
 )
 
 // Pigeon carries data from an MQTT message to InfluxDB
@@ -56,13 +57,8 @@ func NewFlock() *Flock {
 	f.startMQTT()
 
 	// Pigeons
-	active := make(map[string]*Pigeon)
-	for siteName, topics := range cfg.Map() {
-		pigeon := NewPigeon(f.mqtt.client, topics, 1, nil)
-		pigeon.Subscribe(pigeon.topics...)
-		active[siteName] = pigeon
-	}
-	f.active = active
+	f.active = map[string]*Pigeon{}
+	f.audit(Config{})
 
 	return f
 }
@@ -82,7 +78,7 @@ func (f *Flock) Serve() {
 				fmt.Println("Database config changed!")
 			case <-cfgChange.sites:
 				// Subscribe/unsubscribe to topics
-				// f.audit(cfgChange.prevCfg)
+				f.audit(cfgChange.prevCfg)
 				// TODO remove connection to database
 			}
 		}
@@ -100,21 +96,16 @@ func (f *Flock) startMQTT() {
 	}
 }
 
-/* // audit handles configuration changes to sites
+// audit handles configuration changes to sites
 // audit manages MQTT subscriptions and forwarding data on to InfluxDB
 func (f *Flock) audit(prevCfg Config) {
 	add, remove := common.MapDiffSlice(prevCfg.Map(), cfg.Map())
-	for siteName, topics := range add {
-		var pigeons []*Pigeon
-		for _, topic := range topics {
-			pigeon := NewPigeon(f.mqtt.client, topic, 1, nil)
-			pigeon.Subscribe()
-			pigeons = append(pigeons, pigeon)
-		}
-		f.active[siteName] = pigeons
+	for site, topics := range add {
+		pigeon := NewPigeon(f.mqtt.client, topics, 1, nil)
+		pigeon.Subscribe(pigeon.topics...)
+		f.active[site] = pigeon
 	}
-	for siteName, topics := range remove {
-		for _, pigeon :=
-		f.active[siteName] = pigeons
+	for site, topics := range remove {
+		f.active[site].Unsubscribe(topics...)
 	}
-} */
+}
