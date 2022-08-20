@@ -141,10 +141,15 @@ func (m *MQTT) URI() string {
 
 // InfluxDB configuration
 type InfluxDB struct {
-	FQDN         string `validate:"required"`
-	TokenRead    string `validate:"required"`
-	TokenWrite   string `validate:"required"`
-	Organisation string `validate:"email"`
+	FQDN string `validate:"required"`
+	// TokenRead  string `validate:"required"`
+	TokenWrite string `validate:"required"`
+	OrgName    string `validate:"email,required"`
+	OrgId      string `validate:"required"`
+}
+
+func (i *InfluxDB) URI() string {
+	return fmt.Sprintf("https://%v", i.FQDN)
 }
 
 // Site configuration

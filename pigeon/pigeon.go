@@ -5,6 +5,8 @@ import (
 	"os"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/rd-benson/pigeon-service/common"
 )
 
@@ -49,6 +51,10 @@ type Flock struct {
 		opts   *mqtt.ClientOptions
 		client *mqtt.Client
 	}
+	influxdb struct {
+		client  *influxdb2.Client
+		writers map[string]*api.WriteAPI
+	}
 	active map[string]*Pigeon
 }
 
@@ -56,6 +62,9 @@ func NewFlock() *Flock {
 	f := new(Flock)
 	// MQTT
 	f.startMQTT()
+
+	// InfluxDB
+	f.startInfluxDB()
 
 	// Pigeons
 	f.active = map[string]*Pigeon{}
@@ -95,6 +104,25 @@ func (f *Flock) startMQTT() {
 		fmt.Println("pigeon cannot continue: ", err)
 		os.Exit(1)
 	}
+	fmt.Println("MQTT ok")
+}
+
+// startInfluxDB links flock to an influxdb client and initialises one write API per site
+// If the connection to the client is bad, pigeon will exit with status code 2
+func (f *Flock) startInfluxDB() {
+	// Get new client, will exit with status code 2 if write token is invalid
+	f.influxdb.client = NewInfluxDB()
+	// Initialise writers
+	f.influxdb.writers = map[string]*api.WriteAPI{}
+	for _, site := range cfg.Sites {
+		created := CreateBucketSafe(site.Name, f.influxdb.client)
+		if created {
+			fmt.Printf("created bucket: %v\n", site.Name)
+		}
+		writer := (*f.influxdb.client).WriteAPI(cfg.InfluxDB.OrgName, site.Name)
+		f.influxdb.writers[site.Name] = &writer
+	}
+	fmt.Println("InfluxDB ok")
 }
 
 // audit handles configuration changes to sites

@@ -5,14 +5,18 @@ go 1.19
 require (
 	github.com/eclipse/paho.mqtt.golang v1.4.1
 	github.com/fsnotify/fsnotify v1.5.4
+	github.com/google/uuid v1.3.0
+	github.com/influxdata/influxdb-client-go/v2 v2.9.2
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/viper v1.12.0
 )
 
 require (
+	github.com/deepmap/oapi-codegen v1.8.2 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/influxdata/line-protocol v0.0.0-20200327222509-2487e7298839 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4 // indirect
 	golang.org/x/net v0.0.0-20220520000938-2e3eb7b945c2 // indirect
